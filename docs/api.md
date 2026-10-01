@@ -18,7 +18,7 @@ This document specifies the HTTP surface of `forecast-v2`. The surface returns s
 - Responses are `application/json`.
 - Both runtimes expose identical routes:
   - **Node**: `http://localhost:${PORT}` (default `:3000`)
-  - **Worker**: `https://forecast.civicbrands.org`
+  - **Worker**: `https://forecast.meansandmeasures.com`
 
 ---
 

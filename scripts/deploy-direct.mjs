@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 
-const WORKER_HEALTH_URL = "https://forecast.civicbrands.org/healthz";
+const WORKER_HEALTH_URL = "https://forecast.meansandmeasures.com/healthz";
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -42,7 +42,7 @@ if (branch !== "prime") {
 }
 
 const origin = read("git", ["remote", "get-url", "origin"]);
-if (!/github\.com[/:]CivicBrands\/forecast(?:\.git)?$/.test(origin)) {
+if (!/github\.com[/:]MeansAndMeasures\/forecast(?:\.git)?$/.test(origin)) {
   console.error(`Refusing to save production state to unexpected origin: ${origin}`);
   process.exit(2);
 }

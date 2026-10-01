@@ -70,7 +70,7 @@ export const nwsAlertsSource: Source<NwsAlert> = {
     const res = await fetch(url, {
       headers: {
         Accept: "application/geo+json",
-        "User-Agent": "CivicBrands Forecast contact@mail.civicbrands.org",
+        "User-Agent": "Means+Measures Forecast contact@meansandmeasures.com",
       },
     });
     if (!res.ok) {

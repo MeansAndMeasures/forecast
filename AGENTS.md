@@ -61,7 +61,7 @@ Node env comes from `.env` via dotenv. Worker env comes from `[vars]` in `wrangl
 
 ## Deployed resources (Cloudflare)
 
-- **Worker**: `forecast` (id `d04c332378e5482280a38872a7f5ecef`), route `forecast.civicbrands.org/*`
+- **Worker**: `forecast` (id `d04c332378e5482280a38872a7f5ecef`), route `forecast.meansandmeasures.com/*`
 - **D1**: `forecast` (uuid `f38eae1e-efe7-41d3-980a-aeb73480a76a`)
 - **Cron**: `*/5 * * * *` triggers `scheduled()` which calls `runTick()`
 

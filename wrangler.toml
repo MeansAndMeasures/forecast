@@ -23,8 +23,8 @@ EVENTS_TIMEZONE = "America/Chicago"
 EVENTS_LOOKAHEAD_HOURS = "24"
 
 [[routes]]
-pattern = "forecast.civicbrands.org/*"
-zone_name = "civicbrands.org"
+pattern = "forecast.meansandmeasures.com"
+custom_domain = true
 
 [observability]
 enabled = true

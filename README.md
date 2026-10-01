@@ -26,7 +26,7 @@ See `docs/architecture.md`, `docs/api.md`, and `docs/sources.md` for the detaile
 - **Storage**: snapshots, collations, and latents stored in SQLite locally and D1 on Cloudflare.
 - **Collation**: latest fresh snapshot per source within `COLLATION_MAX_AGE_MS`; stale sources are omitted, not interpolated.
 - **Latents**: derived signals such as `aqi_max`, `visibility_min_sm`, `fire_detection_count`, and `smoke_impacted_aq`.
-- **Deployment**: Worker `forecast`, D1 database `forecast`, route `forecast.civicbrands.org/*`, cron `*/5 * * * *`.
+- **Deployment**: Worker `forecast`, D1 database `forecast`, route `forecast.meansandmeasures.com/*`, cron `*/5 * * * *`.
 
 ## Architecture
 

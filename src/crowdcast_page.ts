@@ -9,7 +9,8 @@
  */
 export function renderCrowdcastHtml(): string {
   return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="en" class="mm" data-mm-theme="dark"><head>
+<link rel="stylesheet" href="https://meansandmeasures.com/means-measures/means-measures.css" /><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>KC Park Crowd-Cast</title>
 <style>
   :root{--bg:#0b1020;--panel:#141b31;--ink:#eaf0ff;--dim:#93a0c4;--line:#26304e;
@@ -50,11 +51,13 @@ export function renderCrowdcastHtml(): string {
   .foot{margin-top:34px;border-top:1px solid var(--line);padding-top:16px;color:var(--dim);font-size:13px;max-width:84ch}
   .foot b{color:var(--ink)}
   .empty{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;color:var(--dim)}
+h1,h2 { font-family: var(--mm-font-display); } nav,button,input,select { font-family: var(--mm-font-ui); } code,pre { font-family: var(--mm-font-data); }
+body,.lede { font-family: var(--mm-font-body); } h3,h4 { font-family: var(--mm-font-institutional); } .eyebrow { font-family: var(--mm-font-editorial); } button { font-family: var(--mm-font-action); } .meta,time { font-family: var(--mm-font-detail); } .chain,.metric { font-family: var(--mm-font-data); }
 </style></head><body><div class="wrap">
 <header>
   <h1>KC Park <span class="live">Crowd-Cast</span></h1>
   <span class="tag">where the city actually goes — live forecast, not headcount</span>
-  <nav class="network" aria-label="CivicBrands"><a href="/">Forecast field</a><a href="https://civicbrands.org/">CivicBrands</a></nav>
+  <nav class="network" aria-label="Means+Measures"><a href="/">Forecast field</a><a href="https://meansandmeasures.com/">Means+Measures</a></nav>
 </header>
 <p class="lede">On a hot day KC doesn't spread out across its parks — it funnels into the cool, wet, shaded few and abandons the rest. This board is live: it re-reads the field every few minutes, and every park attribute under it is measured, not guessed.</p>
 <div class="hazard" id="hazard" hidden></div>

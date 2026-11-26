@@ -346,3 +346,48 @@ export async function latestPlaceSignals(db: D1Database, signal = "park_crowding
     confidence: r.confidence ?? undefined,
   }));
 }
+
+export type SourceRunStatus = "ok" | "empty" | "disabled" | "error";
+
+export type SourceRun = {
+  source: string;
+  ran_at: number;
+  status: SourceRunStatus;
+  record_count: number;
+  error: string | null;
+  last_ok_at: number | null;
+  last_error_at: number | null;
+};
+
+/** Upsert one source's outcome for this tick (migration 0005). */
+export async function recordSourceRun(
+  db: D1Database,
+  run: { source: string; ran_at: number; status: SourceRunStatus; record_count: number; error?: string },
+): Promise<void> {
+  const okAt = run.status === "ok" ? run.ran_at : null;
+  const errAt = run.status === "error" ? run.ran_at : null;
+  await db
+    .prepare(
+      `INSERT INTO source_runs (source, ran_at, status, record_count, error, last_ok_at, last_error_at)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+       ON CONFLICT(source) DO UPDATE SET
+         ran_at = excluded.ran_at,
+         status = excluded.status,
+         record_count = excluded.record_count,
+         error = excluded.error,
+         last_ok_at = COALESCE(excluded.last_ok_at, source_runs.last_ok_at),
+         last_error_at = COALESCE(excluded.last_error_at, source_runs.last_error_at)`,
+    )
+    .bind(run.source, run.ran_at, run.status, run.record_count, run.error?.slice(0, 500) ?? null, okAt, errAt)
+    .run();
+}
+
+export async function listSourceRuns(db: D1Database): Promise<SourceRun[]> {
+  const res = await db
+    .prepare(
+      `SELECT source, ran_at, status, record_count, error, last_ok_at, last_error_at
+       FROM source_runs ORDER BY source`,
+    )
+    .all<SourceRun>();
+  return res.results ?? [];
+}

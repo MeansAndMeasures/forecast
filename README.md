@@ -15,14 +15,15 @@ The system has three runtime surfaces:
 
 - **Node local runtime**: polling tick loop, `better-sqlite3` persistence, and HTTP API.
 - **Cloudflare Worker**: cron-triggered polling, D1 persistence, public HTTP API, and internal NOTAM ingest endpoint.
-- **NOTAM relay**: a separate Node service under `relay/notam/` that holds the FAA SWIM JMS connection and forwards validated NOTAM batches to the Worker.
+- **NOTAM relay (optional)**: a separate Node service under `relay/notam/` that can hold an FAA SWIM JMS connection and forward NOTAM batches to the Worker. NOTAM is normally polled from the FAA NMS API instead.
 
 See `docs/architecture.md`, `docs/api.md`, and `docs/sources.md` for the detailed contracts.
 
 ## Current State
 
-- **Polling sources**: METAR, AirNow, FIRMS, HRRR Smoke, NEXRAD, NLDN, and EVENTS through `src/sources/registry.ts`.
-- **Push source**: NOTAM through `POST /ingest/notam`, backed by the SWIM relay.
+- **Polling sources**: METAR, AirNow, FIRMS, HRRR Smoke, NEXRAD, NLDN, EVENTS, NWS alerts and NOTAM (FAA NMS API) through `src/sources/registry.ts`.
+- **Optional push**: NOTAM batches through `POST /ingest/notam` from the SWIM relay, into the same snapshots.
+- **Source status**: each tick records every source's last outcome (ok, empty, disabled, error); see `GET /sources/status`.
 - **Storage**: snapshots, collations, and latents stored in SQLite locally and D1 on Cloudflare.
 - **Collation**: latest fresh snapshot per source within `COLLATION_MAX_AGE_MS`; stale sources are omitted, not interpolated.
 - **Latents**: derived signals such as `aqi_max`, `visibility_min_sm`, `fire_detection_count`, and `smoke_impacted_aq`.
@@ -31,7 +32,7 @@ See `docs/architecture.md`, `docs/api.md`, and `docs/sources.md` for the detaile
 ## Architecture
 
 ```
-[Polling APIs]              [FAA SWIM JMS]
+[Polling APIs + FAA NMS]     [FAA SWIM JMS, optional]
      |                            |
 [Source Registry]          [relay/notam]
      |                            |
@@ -102,7 +103,10 @@ Additional optional source credentials:
 | `PREDICTHQ_CATEGORIES` | Optional comma-separated category override |
 | `PREDICTHQ_LIMIT` | Optional event result limit, default 50 |
 
-Worker configuration comes from `wrangler.toml` `[vars]` and Wrangler secrets. `INGEST_TOKEN` is required for NOTAM relay ingestion.
+| `FAA_NMS_CLIENT_ID`, `FAA_NMS_CLIENT_SECRET` | Enable NOTAM from the FAA NMS API |
+| `FAA_NMS_BASE_URL`, `FAA_NMS_AUTH_URL` | Optional NMS endpoint overrides (default: production) |
+
+Worker configuration comes from `wrangler.toml` `[vars]` and Wrangler secrets. `INGEST_TOKEN` is needed only for the optional NOTAM relay.
 
 ## Build, Test, Run
 
@@ -166,6 +170,7 @@ Both primary runtimes expose read-only JSON routes:
 |---|---|
 | `GET /` | List available endpoints |
 | `GET /healthz` | Liveness probe |
+| `GET /sources/status` | Last outcome of every polled source (Worker) |
 | `GET /snapshots/{SOURCE}` | Latest snapshot for a known source |
 | `GET /collations/latest` | Latest cross-source collation |
 | `GET /latents/latest` | Latest latent rows sharing one timestamp |
@@ -199,7 +204,8 @@ See `docs/api.md` for response shapes and error semantics.
 | NEXRAD | Polling | Latest Level-2 radar scan metadata |
 | NLDN | Polling | Subscription-gated lightning detections |
 | EVENTS | Polling | Local event context, initially via PredictHQ |
-| NOTAM | Push relay | FAA SWIM FNS NOTAM records |
+| NWS_ALERTS | Polling | National Weather Service alerts |
+| NOTAM | Polling (FAA NMS), optional push relay | FAA NOTAM records |
 
 ## Roadmap
 

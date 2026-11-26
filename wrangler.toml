@@ -22,17 +22,9 @@ COLLATION_MAX_AGE_MS = "3600000"
 EVENTS_TIMEZONE = "America/Chicago"
 EVENTS_LOOKAHEAD_HOURS = "24"
 
-# Primary hostname.
 [[routes]]
 pattern = "forecast.meansandmeasures.com/*"
 zone_name = "meansandmeasures.com"
-
-# Legacy hostname from the CivicBrands name, still served so existing links,
-# bookmarks and the NOTAM relay keep working. Wrangler replaces the Worker's
-# routes with this list on deploy, so removing it here removes it live.
-[[routes]]
-pattern = "forecast.civicbrands.org/*"
-zone_name = "civicbrands.org"
 
 [observability]
 enabled = true

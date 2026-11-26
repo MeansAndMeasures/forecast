@@ -25,7 +25,7 @@ migrations/
 test/
   collate.test.ts  node:test
   server.test.ts   node:test
-wrangler.toml      Worker + D1 bindings + 5-min cron + meansandmeasures.com route (+ legacy civicbrands.org route)
+wrangler.toml      Worker + D1 bindings + 5-min cron + meansandmeasures.com route
 ```
 
 Node and Worker share `src/ingest.ts` (pure fetch + Zod), but each has its own store and collate module because better-sqlite3 is sync and D1 is async.
@@ -61,7 +61,7 @@ Node env comes from `.env` via dotenv. Worker env comes from `[vars]` in `wrangl
 
 ## Deployed resources (Cloudflare)
 
-- **Worker**: `forecast` (id `d04c332378e5482280a38872a7f5ecef`), routes `forecast.meansandmeasures.com/*` (primary) and `forecast.civicbrands.org/*` (legacy)
+- **Worker**: `forecast` (id `d04c332378e5482280a38872a7f5ecef`), route `forecast.meansandmeasures.com/*`
 - **D1**: `forecast` (uuid `f38eae1e-efe7-41d3-980a-aeb73480a76a`)
 - **Cron**: `*/5 * * * *` triggers `scheduled()` which calls `runTick()`
 

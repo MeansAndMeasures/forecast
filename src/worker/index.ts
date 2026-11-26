@@ -41,8 +41,14 @@ export interface Env {
   PREDICTHQ_LIMIT?: string;
   EVENTS_LOOKAHEAD_HOURS?: string;
   EVENTS_TIMEZONE?: string;
-  /** Bearer token presented by the NOTAM SWIM relay on POST /ingest/notam. */
+  /** Bearer token presented by the optional NOTAM SWIM relay on POST /ingest/notam. */
   INGEST_TOKEN?: string;
+  /** FAA NMS OAuth client (NOTAM source). Both must be set to enable it. */
+  FAA_NMS_CLIENT_ID?: string;
+  FAA_NMS_CLIENT_SECRET?: string;
+  /** Optional NMS overrides, e.g. the staging endpoints. Default: production. */
+  FAA_NMS_BASE_URL?: string;
+  FAA_NMS_AUTH_URL?: string;
   /** Days of raw place_signals to keep. Unset/0 = never prune (rollup only). */
   PLACE_SIGNALS_RETENTION_DAYS?: string;
 }

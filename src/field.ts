@@ -220,9 +220,29 @@ function summarizeSnapshot(source: string, data: unknown[]): PlainObservation[] 
       return summarizeEvents(data);
     case "NWS_ALERTS":
       return summarizeNwsAlerts(data);
+    case "NOTAM":
+      return summarizeNotams(data);
     default:
       return [{ source, title: source, summary: `${data.length} record(s) available.` }];
   }
+}
+
+function summarizeNotams(data: unknown[], now: number = Date.now()): PlainObservation[] {
+  const rows = data as Array<{ location?: string; number?: string; text?: string; effective_start?: string; effective_end?: string }>;
+  const active = rows.filter((r) => {
+    const start = r.effective_start ? Date.parse(r.effective_start) : Number.NaN;
+    const end = r.effective_end ? Date.parse(r.effective_end) : Number.POSITIVE_INFINITY;
+    return Number.isFinite(start) && start <= now && now <= end;
+  });
+  const places = [...new Set(active.map((r) => r.location).filter(Boolean))].slice(0, 6);
+  return [
+    {
+      source: "NOTAM",
+      title: "Airspace notices",
+      summary: `${active.length} in effect${places.length ? ` at ${places.join(", ")}` : ""}; ${rows.length} in the latest batch.`,
+      severity: active.length > 0 ? "watch" : "ok",
+    },
+  ];
 }
 
 function summarizeNwsAlerts(data: unknown[]): PlainObservation[] {

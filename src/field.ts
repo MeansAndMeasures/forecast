@@ -1,3 +1,4 @@
+import { airnowReadings } from "./sources/airnow";
 import { deriveLatents, DerivedLatent } from "./latents";
 import { registry } from "./sources/registry";
 import { AnySource, Snapshot, SourceContext } from "./sources/types";
@@ -190,9 +191,9 @@ export async function buildTransientField(
 function deriveLocationLabel(location: FieldLocation, snapshots: Record<string, Snapshot<unknown>>): string {
   if (location.source === "default") return location.label;
 
-  const airnow = snapshots.AIRNOW?.data[0] as { ReportingArea?: string; StateCode?: string } | undefined;
-  if (airnow?.ReportingArea) {
-    return airnow.StateCode ? `${airnow.ReportingArea}, ${airnow.StateCode}` : airnow.ReportingArea;
+  const airnow = airnowReadings(snapshots.AIRNOW?.data ?? [])[0];
+  if (airnow?.area) {
+    return airnow.state ? `${airnow.area}, ${airnow.state}` : airnow.area;
   }
 
   const metar = snapshots.METAR?.data[0] as { name?: string } | undefined;
@@ -273,22 +274,13 @@ function summarizeMetar(data: unknown[]): PlainObservation[] {
 }
 
 function summarizeAirNow(data: unknown[]): PlainObservation[] {
-  return data.map((row) => {
-    const o = row as {
-      ReportingArea?: string;
-      StateCode?: string;
-      ParameterName?: string;
-      AQI?: number;
-      Category?: { Name?: string; Number?: number };
-    };
-    return {
-      source: "AIRNOW",
-      title: `${o.ParameterName ?? "AQI"} in ${o.ReportingArea ?? "area"}${o.StateCode ? `, ${o.StateCode}` : ""}`,
-      summary: `AQI ${o.AQI ?? "-"} (${o.Category?.Name ?? "unknown category"}).`,
-      severity: typeof o.AQI === "number" && o.AQI > 100 ? "alert" : typeof o.AQI === "number" && o.AQI > 50 ? "watch" : "ok",
-      details: { category: o.Category },
-    };
-  });
+  return airnowReadings(data).map((o) => ({
+    source: "AIRNOW",
+    title: `${o.parameter || "AQI"} in ${o.area || "area"}${o.state ? `, ${o.state}` : ""}`,
+    summary: `AQI ${o.aqi} (${o.category.Name}).`,
+    severity: o.aqi > 100 ? "alert" : o.aqi > 50 ? "watch" : "ok",
+    details: { category: o.category, ...(o.site ? { site: o.site } : {}) },
+  }));
 }
 
 function summarizeFirms(data: unknown[]): PlainObservation[] {

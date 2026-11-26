@@ -313,8 +313,9 @@ export function deriveParkCrowding(places: Place[], ctx: ParkCrowdContext): Crow
 /** Hottest station temperature in a METAR snapshot, converted C→°F. */
 export function hottestTempF(metarRows: unknown[]): number | undefined {
   const temps = metarRows
-    .map((r) => Number((r as { temp?: unknown }).temp))
-    .filter((n) => Number.isFinite(n));
+    .map((r) => (r as { temp?: unknown }).temp)
+    // A station that did not report temperature sends null; Number(null) is 0 °C.
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n));
   if (temps.length === 0) return undefined;
   return Math.round((Math.max(...temps) * 9) / 5 + 32);
 }

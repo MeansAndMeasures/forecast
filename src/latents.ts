@@ -1,3 +1,4 @@
+import { airnowReadings } from "./sources/airnow";
 import type { Collation } from "./store";
 import { activeHeatAlert, alertWhat, NwsAlertSchema } from "./sources/nws_alerts";
 
@@ -100,9 +101,7 @@ export function deriveLatents(c: Collation, lookup: SnapshotLookup, context: Lat
   if (has("AIRNOW")) {
     const snap = lookup("AIRNOW");
     if (snap) {
-      const aqis = snap.data
-        .map((d) => (d as { AQI?: number }).AQI)
-        .filter((n): n is number => typeof n === "number");
+      const aqis = airnowReadings(snap.data).map((r) => r.aqi);
       if (aqis.length > 0) {
         const max = Math.max(...aqis);
         out.push({
@@ -234,10 +233,9 @@ export function deriveLatents(c: Collation, lookup: SnapshotLookup, context: Lat
     const aq = lookup("AIRNOW");
     const fire = lookup("FIRMS");
     if (aq && fire) {
-      const pm = aq.data
-        .filter((d) => /PM2\.5|PM10/.test((d as { ParameterName?: string }).ParameterName ?? ""))
-        .map((d) => (d as { AQI?: number }).AQI)
-        .filter((n): n is number => typeof n === "number");
+      const pm = airnowReadings(aq.data)
+        .filter((r) => /PM2\.5|PM10/.test(r.parameter))
+        .map((r) => r.aqi);
       const pmMax = pm.length > 0 ? Math.max(...pm) : 0;
       const fires = fire.data.length;
       out.push({
@@ -505,10 +503,9 @@ function maxOf(values: number[]): number {
 
 function maxAirnow(rows: unknown[], parameterPattern: RegExp): number {
   return maxOf(
-    rows
-      .filter((d) => parameterPattern.test((d as { ParameterName?: string }).ParameterName ?? ""))
-      .map((d) => (d as { AQI?: number }).AQI)
-      .filter((n): n is number => typeof n === "number"),
+    airnowReadings(rows)
+      .filter((r) => parameterPattern.test(r.parameter))
+      .map((r) => r.aqi),
   );
 }
 
@@ -593,8 +590,11 @@ function meanWindVector(rows: unknown[]): { fromDeg: number; speedKt: number } |
   let n = 0;
   for (const row of rows) {
     const r = row as { wdir?: unknown; wspd?: unknown };
-    const dir = Number(r.wdir);
-    const spd = Number(r.wspd);
+    // Variable ("VRB") or unreported direction carries no vector; skip it
+    // rather than let Number(null) read as due north.
+    if (typeof r.wdir !== "number" || typeof r.wspd !== "number") continue;
+    const dir = r.wdir;
+    const spd = r.wspd;
     if (!Number.isFinite(dir) || !Number.isFinite(spd) || spd <= 0) continue;
     const rad = toRad(dir);
     sx += spd * Math.sin(rad);

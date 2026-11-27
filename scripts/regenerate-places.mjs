@@ -56,7 +56,7 @@ const CONFIG = {
     "https://overpass.private.coffee/api/interpreter",
     "https://overpass-api.de/api/interpreter",
   ],
-  ua: "forecast-v2/1.0 (civicbrands.org; park crowd-cast registry)",
+  ua: "forecast-v2/1.0 (meansandmeasures.com; park crowd-cast registry)",
   noCache: args.includes("--no-cache"),
   overpassTimeoutMs: Number(argVal("--overpass-timeout-ms", "50000")),
   skipExtras: args.includes("--skip-extras"),

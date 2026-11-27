@@ -18,7 +18,7 @@ This document specifies the HTTP surface of `forecast-v2`. The surface returns s
 - Responses are `application/json`.
 - Both runtimes expose identical routes:
   - **Node**: `http://localhost:${PORT}` (default `:3000`)
-  - **Worker**: `https://forecast.civicbrands.org`
+  - **Worker**: `https://forecast.meansandmeasures.com`
 
 ---
 
@@ -30,6 +30,7 @@ Enumerates available endpoints. The `snapshots/*` entries reflect the current so
 {
   "endpoints": [
     "/healthz",
+    "/sources/status",
     "/snapshots/METAR",
     "/snapshots/AIRNOW",
     "/snapshots/FIRMS",
@@ -49,6 +50,28 @@ Enumerates available endpoints. The `snapshots/*` entries reflect the current so
 ## `GET /healthz`
 
 Liveness probe. Returns `{ "ok": true }` when the surface is reachable. The endpoint **DOES NOT** report ingestion health, collation freshness, or upstream availability.
+
+---
+
+## `GET /sources/status`
+
+Worker only. The last outcome of every polled source, from `source_runs`.
+
+**`200`**
+
+```json
+{
+  "sources": [
+    { "source": "METAR", "ran_at": 1795731200000, "status": "ok", "record_count": 9, "error": null, "last_ok_at": 1795731200000, "last_error_at": null },
+    { "source": "FIRMS", "ran_at": 1795731200000, "status": "empty", "record_count": 0, "error": null, "last_ok_at": null, "last_error_at": null },
+    { "source": "NLDN", "status": "never_run" }
+  ]
+}
+```
+
+`status` is `ok`, `empty`, `disabled` or `error`; `never_run` means no tick has recorded the source yet.
+
+**`503`** — `{ "error": "source_runs_unavailable" }` until migration `0005_source_runs.sql` is applied.
 
 ---
 
@@ -151,7 +174,7 @@ Returns the most recent `N` (default `100`) rows for the named latent, ordered b
 
 ## `POST /ingest/notam`
 
-Receives a batch of canonical NOTAM records from the SWIM relay (`relay/notam/`). This endpoint is internal and **MUST** be called only by the relay; it is **NOT** part of the public read surface.
+Receives a batch of canonical NOTAM records from the optional SWIM relay (`relay/notam/`). NOTAM normally arrives through the polled NMS source; this endpoint is a second way in, writing to the same snapshots. It is internal and **MUST** be called only by the relay; it is **NOT** part of the public read surface.
 
 - **Authentication**: `Authorization: Bearer ${INGEST_TOKEN}`. `INGEST_TOKEN` is provisioned as a Worker secret and **MUST** match the value held by the relay.
 - **Content-Type**: `application/json`

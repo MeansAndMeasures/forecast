@@ -21,7 +21,9 @@ src/
     nexrad.ts          NEXRAD L2 metadata via S3 (env-gated)
     nldn.ts            NLDN lightning (env-gated, subscription)
     events.ts          canonical local event context, initially PredictHQ (env-gated)
-  notam-schema.ts      Canonical NOTAM Zod schema (shared by Worker + relay)
+    nws_alerts.ts      NWS active alerts for the point
+    notam.ts           NOTAM polled from the FAA NMS API (env-gated, OAuth client)
+  notam-schema.ts      Canonical NOTAM Zod schema (NMS source, Worker ingest, relay)
   store.ts             better-sqlite3 store (Node only)
   collate.ts           cross-source collation (Node)
   latents.ts           derived signals from a collation
@@ -40,17 +42,19 @@ migrations/
   0002_latents.sql     latents table
   0003_places.sql      places (static registry) + place_signals (crowd-cast, foot_traffic seam)
   0004_rollup.sql      place_signals_hourly rollup + maintenance_state
+  0005_source_runs.sql last outcome per source (ok/empty/disabled/error), served at /sources/status
 scripts/
   regenerate-places.mjs  OSM parks + NLCD canopy/impervious + HOLC grade (free, keyless)
   holc-canopy-audit.mjs  NEIGHBORHOOD canopy per HOLC polygon — where the redlining signal lives
   build-registry.mjs     merges the above into src/places.generated.json
 relay/
-  notam/               out-of-process SWIM JMS consumer (systemd, home server)
+  notam/               optional SWIM JMS consumer; not deployed, NOTAM is polled from NMS
 test/
   collate.test.ts      node:test
   server.test.ts       node:test
   latents.test.ts      node:test
-wrangler.toml          Worker + D1 bindings + 5-min cron + civicbrands route
+  sources.test.ts      METAR bbox, AirNow parsing, NEXRAD newest volume, NMS mapping + auth
+wrangler.toml          Worker + D1 bindings + 5-min cron + meansandmeasures.com route
 ```
 
 Sources are shared between Node and Worker via `src/sources/`. The two storage modules differ because `better-sqlite3` is synchronous and D1 is async; the schema and JSON encoding match exactly so migrations are shared.
@@ -84,7 +88,9 @@ npx wrangler d1 migrations apply forecast   # apply pending migrations
 | `EVENTS_TIMEZONE` | both | default `America/Chicago` |
 | `EVENTS_LOOKAHEAD_HOURS` | both | default `24` |
 | `PREDICTHQ_CATEGORIES`, `PREDICTHQ_LIMIT` | both | optional event query tuning |
-| `INGEST_TOKEN` | Worker | bearer token required by `POST /ingest/notam`; must match the relay's `INGEST_TOKEN` |
+| `FAA_NMS_CLIENT_ID`, `FAA_NMS_CLIENT_SECRET` | both | optional; enables NOTAM from the FAA NMS API. Issued by the FAA on request |
+| `FAA_NMS_BASE_URL`, `FAA_NMS_AUTH_URL` | both | optional overrides; default production `https://api-nms.aim.faa.gov/nmsapi` and `/v1/auth/token` |
+| `INGEST_TOKEN` | Worker | only for the optional relay: bearer token required by `POST /ingest/notam` |
 | `PLACE_SIGNALS_RETENTION_DAYS` | Worker | optional; days of raw `place_signals` to keep. **Unset/0 = never prune** (hourly rollup still runs, additive only). Set to a positive number to enable destructive pruning. |
 | `TICK_MS` | Node only | default 300_000 (Worker uses cron) |
 | `RUN_ONCE` | Node only | `1` = one tick, then exit |
@@ -96,7 +102,7 @@ Node env comes from `.env` via dotenv. Worker env comes from `[vars]` in `wrangl
 
 ## Deployed resources (Cloudflare)
 
-- **Worker**: `forecast` (id `d04c332378e5482280a38872a7f5ecef`), route `forecast.civicbrands.org/*`
+- **Worker**: `forecast` (id `d04c332378e5482280a38872a7f5ecef`), route `forecast.meansandmeasures.com/*`
 - **D1**: `forecast` (uuid `f38eae1e-efe7-41d3-980a-aeb73480a76a`)
 - **Cron**: `*/5 * * * *` triggers `scheduled()` which calls `runTick()`
 
@@ -108,9 +114,11 @@ See `migrations/0001_init.sql`.
 - `collations(id, collated_at, observed_at_min, observed_at_max, sources)` — `sources` is JSON of `{ [SourceName]: { snapshot_id, fetched_at, record_count } }`.
 - `latents(id, ts, name, value, collation_id, inputs, confidence)` — derived signals from a collation; `inputs` is JSON.
 
-## NOTAM ingestion (push, not poll)
+## NOTAM ingestion
 
-NOTAM is the one source that does not live in `src/sources/registry.ts`. The FAA delivers FNS NOTAMs over SWIM JMS (Solace, `tcps://ems1.swim.faa.gov:55443`), which the Worker cannot speak. The relay in `relay/notam/` runs as a long-lived systemd unit on a home box: it consumes the queue, parses the AIXM payload into the canonical shape declared in `src/notam-schema.ts`, geo-filters to `USER_LAT/LON + RADIUS_MILES`, batches records, and POSTs them to the Worker at `/ingest/notam` with a bearer `INGEST_TOKEN`. The Worker validates and writes one `snapshots` row per batch with `source = 'NOTAM'`. Downstream (`/snapshots/NOTAM`, collation, latents) treats NOTAM identically to every other source.
+NOTAM is a polled source in the registry (`src/sources/notam.ts`). It mints an OAuth2 client_credentials token from the FAA NMS API, asks `GET /v1/notams?latitude=&longitude=&radius=` (nautical miles, max 100) for GeoJSON, and maps each feature into the canonical `NotamRecord` in `src/notam-schema.ts`. It is disabled until `FAA_NMS_CLIENT_ID` and `FAA_NMS_CLIENT_SECRET` are set. No always-on process is involved.
+
+`relay/notam/` (SWIM JMS) and `POST /ingest/notam` still exist as an optional second producer into the same `NOTAM` snapshots. The relay is not deployed anywhere.
 
 ## Tick semantics
 
@@ -118,6 +126,8 @@ One tick = invoke every source in the registry in parallel (`Promise.allSettled`
 1. Is skipped if its `cadenceMs` has not elapsed (Node only — the Worker runs all enabled sources every cron firing).
 2. Is skipped if `isEnabled(ctx)` returns false (missing env/credentials).
 3. Fetches, validates against its Zod schema, and appends one row to `snapshots`. An empty observation array is **NOT** persisted.
+
+The Worker then upserts each source's outcome into `source_runs` (best-effort; missing table before migration 0005 is logged, not fatal), served at `GET /sources/status`.
 
 After ingestion, `collate()` reads the latest snapshot per registered source, drops any older than `COLLATION_MAX_AGE_MS`, and writes one collation row if at least one fresh source exists. `deriveLatents(c)` then produces zero or more `latents` rows from the collation.
 

@@ -26,7 +26,7 @@ const CONCURRENCY = 6;
 const HOLC_CACHE = "/tmp/mappinginequality.json";
 const TCC = "nlcd_tcc_conus_2021_v2021-4";
 const IMP = "NLCD_2021_Impervious_L48";
-const UA = "forecast-v2/1.0 (civicbrands.org; holc canopy audit)";
+const UA = "forecast-v2/1.0 (meansandmeasures.com; holc canopy audit)";
 
 const mean = (a) => (a.length ? a.reduce((s, x) => s + x, 0) / a.length : null);
 const median = (a) => {

@@ -1,17 +1,22 @@
 import { z } from "zod";
 
 /**
- * Canonical NOTAM record produced by the SWIM relay from an FNS AIXM message
- * and validated by the Worker on ingest. Field names favor readability over
- * upstream fidelity; the original AIXM XML is intentionally not preserved.
+ * Canonical NOTAM record. Two producers fill it: the polled FAA NMS source in
+ * `src/sources/notam.ts` (the default path, no extra infrastructure) and the
+ * optional SWIM relay in `relay/notam/`, which posts to /ingest/notam. Field
+ * names favor readability over upstream fidelity; neither the AIXM XML nor the
+ * GeoJSON feature is preserved.
+ *
+ * `fns_uuid`, `year` and `interpretation` are FNS/AIXM concepts the NMS API
+ * does not return, so they are optional; the relay still sends them.
  */
 export const NotamRecordSchema = z.object({
   id: z.string(),
-  fns_uuid: z.string(),
+  fns_uuid: z.string().optional(),
   number: z.string(),
-  year: z.string(),
+  year: z.string().optional(),
   type: z.string(),
-  interpretation: z.string(),
+  interpretation: z.string().optional(),
   issued: z.string(),
   effective_start: z.string(),
   effective_end: z.string().optional(),

@@ -1,5 +1,7 @@
 # forecast NOTAM SWIM relay
 
+> Optional. The Worker polls NOTAMs from the FAA NMS API (`src/sources/notam.ts`), so this relay is not needed for NOTAM to flow. It is kept as a second producer for anyone who has SWIM FNS access and a host to run it on.
+
 Long-running Node process that consumes FAA SWIM FNS NOTAM messages from a Solace JMS queue, parses the AIXM 5.1 payload into a canonical NOTAM record, geo-filters to the configured radius, and forwards batches to the Forecast Cloudflare Worker.
 
 Workers cannot open arbitrary outbound TCP on port 55443, so this relay must run somewhere with persistent network — a home box or any small Linux VM is the intended target.

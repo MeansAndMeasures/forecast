@@ -21,10 +21,12 @@ RADIUS_MILES = "30"
 COLLATION_MAX_AGE_MS = "3600000"
 EVENTS_TIMEZONE = "America/Chicago"
 EVENTS_LOOKAHEAD_HOURS = "24"
+# Kansas City (Pleasant Hill) WSR-88D. Public Level II archive, no key needed.
+NEXRAD_STATIONS = "KEAX"
 
 [[routes]]
-pattern = "forecast.civicbrands.org/*"
-zone_name = "civicbrands.org"
+pattern = "forecast.meansandmeasures.com/*"
+zone_name = "meansandmeasures.com"
 
 [observability]
 enabled = true

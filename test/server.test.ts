@@ -48,7 +48,7 @@ test("GET / returns dashboard HTML for browsers", async () => {
   assert.match(body, /Where the readings came from/);
   assert.match(body, /KC help/);
   assert.match(body, /Heat warning: get somewhere cooler/);
-  assert.match(body, /civicbrands\.org\/kc\/housing/);
+  assert.match(body, /meansandmeasures\.com\/kc\/housing/);
   assert.match(body, /Choose a Forecast pathway/);
   assert.match(body, /Raw data access/);
   assert.match(body, /Provider \/ methodology/);

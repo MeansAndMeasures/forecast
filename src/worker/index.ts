@@ -7,9 +7,12 @@ import {
   latestLatents,
   latestPlaceSignals,
   latestSnapshot,
+  listSourceRuns,
   maintainPlaceSignals,
   placeSignalHistory,
+  recordSourceRun,
   Snapshot,
+  SourceRunStatus,
 } from "./store";
 import { collate } from "./collate";
 import { knownSourceNames, registry, sourceNames } from "../sources/registry";
@@ -41,8 +44,14 @@ export interface Env {
   PREDICTHQ_LIMIT?: string;
   EVENTS_LOOKAHEAD_HOURS?: string;
   EVENTS_TIMEZONE?: string;
-  /** Bearer token presented by the NOTAM SWIM relay on POST /ingest/notam. */
+  /** Bearer token presented by the optional NOTAM SWIM relay on POST /ingest/notam. */
   INGEST_TOKEN?: string;
+  /** FAA NMS OAuth client (NOTAM source). Both must be set to enable it. */
+  FAA_NMS_CLIENT_ID?: string;
+  FAA_NMS_CLIENT_SECRET?: string;
+  /** Optional NMS overrides, e.g. the staging endpoints. Default: production. */
+  FAA_NMS_BASE_URL?: string;
+  FAA_NMS_AUTH_URL?: string;
   /** Days of raw place_signals to keep. Unset/0 = never prune (rollup only). */
   PLACE_SIGNALS_RETENTION_DAYS?: string;
 }
@@ -72,6 +81,7 @@ function endpointIndex() {
   return {
     endpoints: [
       "/healthz",
+      "/sources/status",
       "/field/current",
       ...snapshotRoutes,
       "/collations/latest",
@@ -230,11 +240,13 @@ function buildContext(env: Env): SourceContext {
   };
 }
 
-async function runSource(db: D1Database, src: AnySource, ctx: SourceContext, now: number): Promise<string> {
-  if (!src.isEnabled(ctx)) return `${src.name}: disabled`;
+type SourceOutcome = { name: string; status: SourceRunStatus; count: number; error?: string };
+
+async function runSource(db: D1Database, src: AnySource, ctx: SourceContext, now: number): Promise<SourceOutcome> {
+  if (!src.isEnabled(ctx)) return { name: src.name, status: "disabled", count: 0 };
   try {
     const data = await src.fetch(ctx);
-    if (data.length === 0) return `${src.name}: 0`;
+    if (data.length === 0) return { name: src.name, status: "empty", count: 0 };
     const { min, max } = src.observedAt(data);
     const snap: Snapshot<unknown> = {
       source: src.name,
@@ -244,10 +256,10 @@ async function runSource(db: D1Database, src: AnySource, ctx: SourceContext, now
       data,
     };
     await appendSnapshot(db, snap);
-    return `${src.name}: ${data.length}`;
+    return { name: src.name, status: "ok", count: data.length };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return `${src.name}: error ${msg}`;
+    return { name: src.name, status: "error", count: 0, error: msg };
   }
 }
 
@@ -255,8 +267,20 @@ export async function runTick(env: Env): Promise<void> {
   const ctx = buildContext(env);
   const now = Date.now();
 
-  const reports = await Promise.all(registry.map((src) => runSource(env.DB, src, ctx, now)));
-  for (const r of reports) console.log(r);
+  const outcomes = await Promise.all(registry.map((src) => runSource(env.DB, src, ctx, now)));
+  for (const o of outcomes) {
+    console.log(`${o.name}: ${o.status === "error" ? `error ${o.error}` : o.status === "ok" ? o.count : o.status}`);
+  }
+  // Keep each source's last outcome so a failing source is visible at
+  // /sources/status instead of only in the logs. Best-effort: before
+  // migration 0005 is applied the table is missing, and the tick goes on.
+  try {
+    for (const o of outcomes) {
+      await recordSourceRun(env.DB, { source: o.name, ran_at: now, status: o.status, record_count: o.count, error: o.error });
+    }
+  } catch (err) {
+    console.log(`source_runs: ${err instanceof Error ? err.message : String(err)}`);
+  }
 
   // Park Crowd-Cast — a per-place correlation over the static registry, keyed to
   // the live field (temperature from METAR). Runs every tick, independent of
@@ -359,6 +383,18 @@ export default {
     if (req.method !== "GET") return json({ error: "method_not_allowed" }, 405);
 
     if (url.pathname === "/healthz") return json({ ok: true });
+
+    if (url.pathname === "/sources/status") {
+      try {
+        const runs = await listSourceRuns(env.DB);
+        const byName = new Map(runs.map((r) => [r.source, r]));
+        return json({
+          sources: registry.map((src) => byName.get(src.name) ?? { source: src.name, status: "never_run" }),
+        });
+      } catch {
+        return json({ error: "source_runs_unavailable", hint: "apply migration 0005_source_runs.sql" }, 503);
+      }
+    }
 
     if (url.pathname === "/field/current") {
       try {

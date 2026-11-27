@@ -54,21 +54,22 @@ A collation is an index across snapshots. It selects the most recent snapshot fo
 
 ## NOTAM ingestion topology
 
-NOTAM is the exception to the polling model. The FAA delivers FNS NOTAMs over SWIM JMS — a Solace broker reachable only by long-lived TLS on port 55443, which the Worker **CANNOT** speak. A small out-of-process relay (`relay/notam/`) holds the JMS session, parses the AIXM payload, filters by geo, batches records, and posts them to the Worker:
+NOTAM is polled like every other source: the tick asks the FAA NMS API for NOTAMs within the field's radius and appends one snapshot per non-empty batch.
 
 ```
-[ FAA SWIM Solace broker (ems1.swim.faa.gov:55443) ]
-        │ tcps + Solace SMF (guaranteed delivery queue)
+[ FAA NMS API (api-nms.aim.faa.gov) ]
+        │ OAuth2 client_credentials → bearer; GET /v1/notams (GeoJSON)
         ▼
-[ Relay: relay/notam/ ]              long-lived systemd unit, home server
-        │ HTTPS POST /ingest/notam, bearer INGEST_TOKEN
+[ Source: src/sources/notam.ts ]     maps features to NotamRecord
         ▼
-[ Worker: handleNotamIngest ]        validates + appends one snapshot per batch
-        ▼
-[ D1: snapshots(source='NOTAM') ]    indistinguishable from polled sources
+[ D1: snapshots(source='NOTAM') ]    indistinguishable from other sources
 ```
 
-The relay is the **only** component in the system that owns long-lived state. Everything else is request- or tick-scoped.
+The SWIM JMS relay in `relay/notam/` remains an optional second producer. When run, it posts batches to `POST /ingest/notam`, which writes into the same snapshots. Nothing in the system depends on it, and without it nothing owns long-lived state: every component is request- or tick-scoped.
+
+## Source run status
+
+Snapshots record only successful, non-empty fetches. Each tick also upserts every source's outcome (`ok`, `empty`, `disabled`, `error`, with the error text and the last time it produced data) into `source_runs` (migration `0005_source_runs.sql`), served at `GET /sources/status`. That keeps "no fires today" distinct from "the fire feed has been failing for a week". Recording is best-effort: before the migration is applied the tick logs the miss and carries on.
 
 ## Runtimes
 

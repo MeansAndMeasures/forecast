@@ -56,8 +56,9 @@ No further edits to `store`, `collate`, `server`, or the Worker entry are requir
 Surface aviation weather observations.
 
 - **Endpoint**: `https://aviationweather.gov/api/data/metar?bbox={S,W,N,E}&format=json`
-- **Authentication**: none
-- **Geographic resolution**: bounding box from `USER_LAT`, `USER_LON`, `RADIUS_MILES`
+- **Authentication**: none; requests carry a `User-Agent`, as AWC asks of API clients
+- **Geographic resolution**: bounding box from `USER_LAT`, `USER_LON`, `RADIUS_MILES`, rounded to four decimals (AWC answers 400 to long float tails)
+- **Variation**: a station may omit or null any sensor field and sends `"VRB"` for variable wind; the schema allows both rather than dropping the batch
 - **Cadence**: 5 minutes
 - **Always enabled**
 
@@ -65,8 +66,11 @@ Surface aviation weather observations.
 
 Surface air quality observations (O3, PM2.5, PM10).
 
-- **Endpoint**: `https://www.airnowapi.org/aq/observation/latLong/current/...`
+- **Endpoint**: `https://www.airnowapi.org/aq/observation/current/ziplatlong/?latitude=&longitude=&API_KEY=&format=application/json`
 - **Authentication**: `AIRNOW_API_KEY` (free)
+- **History**: AirNow retired `/aq/observation/latLong/current/` on 2026-10-01; it answers 410. The current service picks the nearest reporting area itself and ignores `distance`.
+- **Variation**: the current service names fields in camelCase (`reportingAreaName`, `parameterName`, `nowcastAQI`, `aqiCategoryName`, `hourObserved` as `"HH:MM"`). Rows are stored as sent; older snapshots hold the retired service's PascalCase rows. Downstream code reads both through `readAirNow` in `src/sources/airnow.ts`.
+- **Empty result**: HTTP 200 with a `{"WebServiceError":[…]}` envelope. That is treated as empty, except a retirement or key error, which fails the run.
 - **Cadence**: 5 minutes
 - **Enabled when**: `AIRNOW_API_KEY` is set
 
@@ -93,10 +97,11 @@ Surface and column smoke from HRRR-Smoke, expected via a JSON proxy (the upstrea
 
 Latest Level-2 radar scan metadata from `s3://unidata-nexrad-level2`. This source records *the existence and key of* the most recent scan per station. It **DOES NOT** decode the radar volume.
 
-- **Endpoint**: `https://unidata-nexrad-level2.s3.amazonaws.com/?list-type=2&prefix=...`
+- **Endpoint**: `https://unidata-nexrad-level2.s3.amazonaws.com/?list-type=2&prefix={YYYY}/{MM}/{DD}/{STATION}/&max-keys=1000`
 - **Authentication**: none
 - **Cadence**: 10 minutes
-- **Enabled when**: `NEXRAD_STATIONS` is set (comma-separated station IDs)
+- **Enabled when**: `NEXRAD_STATIONS` is set (comma-separated station IDs). Production sets `KEAX` (Kansas City / Pleasant Hill) in `wrangler.toml`.
+- **Selection**: S3 lists keys in ascending order, so the newest volume is the last non-`_MDM` key of the UTC day, falling back to the previous day just after midnight. A run where every station's listing fails is an error, not an empty result.
 
 ### NLDN — `src/sources/nldn.ts`
 
@@ -120,9 +125,22 @@ Local event context. This is a canonical event-context adapter rather than a sin
 - **Enabled when**: `PREDICTHQ_API_KEY` is set
 - **Notes**: Event completeness is subscription and provider dependent. Absence of event rows is not proof that no events exist.
 
-### NOTAM — `relay/notam/` (push)
+### NOTAM — `src/sources/notam.ts` (polled)
 
-Airspace notices from the FAA via **SWIM JMS**, not REST. The Worker cannot open the outbound TLS connection (`tcps://ems1.swim.faa.gov:55443`) that the Solace broker requires, so NOTAM ingestion runs out-of-process in `relay/notam/` — a Node systemd unit on a home server.
+Airspace notices from the FAA NOTAM Management Service (NMS) API, polled by the same tick as every other source. No always-on process is needed.
+
+- **Token**: `POST {FAA_NMS_AUTH_URL}` with HTTP Basic `client_id:client_secret` and `grant_type=client_credentials`; the bearer token is cached per isolate and renewed a minute before it expires
+- **Endpoint**: `GET {FAA_NMS_BASE_URL}/v1/notams?latitude=&longitude=&radius=` with header `nmsResponseFormat: GEOJSON`; `radius` is nautical miles from `RADIUS_MILES`, capped at 100
+- **Defaults**: production, `https://api-nms.aim.faa.gov/nmsapi` and `https://api-nms.aim.faa.gov/v1/auth/token`. Staging is `https://api-staging.cgifederal-aim.com/nmsapi` and `/v1/auth/token` on the same host.
+- **Authentication**: `FAA_NMS_CLIENT_ID` and `FAA_NMS_CLIENT_SECRET`, issued by the FAA on request (not self-serve)
+- **Schema**: each GeoJSON feature's `properties.coreNOTAMData.notam` is mapped to the canonical `NotamRecord` in `src/notam-schema.ts`. Features without a number, location, text or issue time are dropped; `PERM` and other non-dates leave `effective_end` unset.
+- **Cadence**: 15 minutes (Node); every cron firing on the Worker
+- **Enabled when**: both NMS credentials are set
+- **Caveat**: the FAA hands out the endpoint documentation with the credentials. The paths, header and field names here follow the published NMS clients and **SHOULD** be checked against that documentation on first use.
+
+### NOTAM — `relay/notam/` (optional push)
+
+The SWIM JMS relay still works and writes into the same `NOTAM` snapshots, but nothing requires it. It needs a host with persistent outbound TLS to `tcps://ems1.swim.faa.gov:55443`, which the Worker cannot open.
 
 - **Upstream**: FAA SWIM, message VPN `AIM_FNS`, AIXM 5.1 Basic Messages with FNS Event extensions
 - **Authentication (upstream)**: Solace username + password + queue, provisioned through the SWIM portal

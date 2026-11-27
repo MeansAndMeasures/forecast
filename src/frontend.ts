@@ -1,36 +1,37 @@
 export function renderFrontendHtml(): string {
   return `<!doctype html>
-<html lang="en">
+<html lang="en" class="mm" data-mm-theme="dark">
 <head>
+<link rel="stylesheet" href="https://meansandmeasures.com/means-measures/means-measures.css" />
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>forecast - civicbrands</title>
-  <link rel="canonical" href="https://forecast.civicbrands.org/" />
+  <title>Forecast — Means+Measures</title>
+  <link rel="canonical" href="https://forecast.meansandmeasures.com/" />
   <meta name="description" content="A live, multi-source picture of observed conditions and relationships around Kansas City." />
   <style>
     :root {
       color-scheme: dark;
-      --civic-ink: #0f1a2c;
-      --iris: #6a5a95;
-      --iris-deep: #463a6b;
-      --signal: #c9482f;
-      --steel: #7a8aa3;
-      --vellum: #e5ddc9;
-      --newsprint: #f2ede2;
+      --civic-ink: #2b2f33;
+      --iris: #4fc3e8;
+      --iris-deep: #26c6da;
+      --signal: #ff7f00;
+      --steel: #9aa7ac;
+      --vellum: #faf3e7;
+      --newsprint: #ffffff;
       --bg: var(--civic-ink);
-      --panel: #152238;
-      --panel-2: #192943;
+      --panel: #2b2f33;
+      --panel-2: #293044;
       --ink: var(--newsprint);
       --muted: #aab5c7;
       --line: #34445e;
-      --accent: #9f8ed0;
+      --accent: #26c6da;
       --ok: #7fd09c;
       --warn: #d5aa68;
       --bad: #e26b55;
       --shadow: rgba(4, 9, 18, 0.28);
-      --display: Sora, Avenir, "Avenir Next", ui-sans-serif, system-ui, sans-serif;
-      --body: Spectral, Georgia, "Times New Roman", serif;
-      --mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+      --display: var(--mm-font-display);
+      --body: var(--mm-font-body);
+      --mono: var(--mm-font-data);
     }
 
     * { box-sizing: border-box; }
@@ -426,20 +427,22 @@ export function renderFrontendHtml(): string {
       table { min-width: 42rem; }
       .footer-top { align-items: start; flex-direction: column; }
     }
-  </style>
+  h1,h2 { font-family: var(--mm-font-display); } nav,button,input,select { font-family: var(--mm-font-ui); } code,pre { font-family: var(--mm-font-data); }
+body,.lede { font-family: var(--mm-font-body); } h3,h4 { font-family: var(--mm-font-institutional); } .eyebrow { font-family: var(--mm-font-editorial); } button { font-family: var(--mm-font-action); } .meta,time { font-family: var(--mm-font-detail); } .chain,.metric { font-family: var(--mm-font-data); }
+</style>
 </head>
 <body>
   <a class="skip-link" href="#main-content">Skip to main content</a>
   <header class="site-header">
     <div class="header-inner">
-      <a class="civic-wordmark" href="https://civicbrands.org/" aria-label="CivicBrands home">Civic <span>◆</span> Brands</a>
+      <a class="civic-wordmark" href="https://meansandmeasures.com/" aria-label="Means+Measures home"><img class="mm-logo" src="https://meansandmeasures.com/means-measures/assets/means-measures-logo-wordmark.png" alt="Means+Measures" width="220" /></a>
       <div class="division">Forecast</div>
       <nav aria-label="Forecast">
         <a href="#now">Now</a>
         <a href="#latents">What the field sees</a>
         <a href="#sources">Sources</a>
         <a href="#technical">Technical</a>
-        <a href="https://civicbrands.org/kc/crisis">KC help</a>
+        <a href="https://meansandmeasures.com/kc/crisis">KC help</a>
         <a class="crowdcast-nav" href="/crowdcast">Park Crowd-Cast&nbsp; →</a>
       </nav>
     </div>
@@ -518,12 +521,12 @@ export function renderFrontendHtml(): string {
       <p id="weather-help-summary"></p>
       <p id="weather-help-instruction" class="official-instruction"></p>
       <div class="resource-links">
-        <a href="https://civicbrands.org/kc/crisis">Need help now&nbsp; →</a>
-        <a href="https://civicbrands.org/kc/libraries">Indoor public places&nbsp; →</a>
-        <a href="https://civicbrands.org/kc/transit">Plan a ride&nbsp; →</a>
-        <a href="https://civicbrands.org/kc/utilities">Utility assistance&nbsp; →</a>
-        <a href="https://civicbrands.org/kc/housing">Shelter and housing&nbsp; →</a>
-        <a href="https://civicbrands.org/kc/healthcare">Medical care&nbsp; →</a>
+        <a href="https://meansandmeasures.com/kc/crisis">Need help now&nbsp; →</a>
+        <a href="https://meansandmeasures.com/kc/libraries">Indoor public places&nbsp; →</a>
+        <a href="https://meansandmeasures.com/kc/transit">Plan a ride&nbsp; →</a>
+        <a href="https://meansandmeasures.com/kc/utilities">Utility assistance&nbsp; →</a>
+        <a href="https://meansandmeasures.com/kc/housing">Shelter and housing&nbsp; →</a>
+        <a href="https://meansandmeasures.com/kc/healthcare">Medical care&nbsp; →</a>
       </div>
     </section>
 
@@ -568,22 +571,22 @@ export function renderFrontendHtml(): string {
 
   <footer class="site-footer">
     <div class="footer-top">
-      <a class="civic-wordmark" href="https://civicbrands.org/">Civic <span>◆</span> Brands</a>
+      <a class="civic-wordmark" href="https://meansandmeasures.com/"><img class="mm-logo" src="https://meansandmeasures.com/means-measures/assets/means-measures-logo-wordmark.png" alt="Means+Measures" width="220" /></a>
       <p class="footer-note">Forecast is observational infrastructure for the Kansas City metro. Data is observational, not predictive.</p>
     </div>
-    <div class="footer-links" aria-label="CivicBrands">
-      <a href="https://civicbrands.org/">CivicBrands</a>
-      <a href="https://civicbrands.org/kc/crisis">Need help now</a>
-      <a href="https://civicbrands.org/kc/">KC resources</a>
+    <div class="footer-links" aria-label="Means+Measures">
+      <a href="https://meansandmeasures.com/">Means+Measures</a>
+      <a href="https://meansandmeasures.com/kc/crisis">Need help now</a>
+      <a href="https://meansandmeasures.com/kc/">KC resources</a>
       <a href="/crowdcast">Park Crowd-Cast</a>
-      <a href="https://civicbrands.org/systems/">Systems</a>
-      <a href="https://civicbrands.org/updates/">Updates</a>
-      <a href="https://civicbrands.org/status/">Status</a>
-      <a href="https://civicbrands.org/brand">Brand</a>
-      <a href="https://civicbrands.org/privacy/">Privacy</a>
-      <a href="https://civicbrands.org/terms/">Terms</a>
+      <a href="https://meansandmeasures.com/systems/">Systems</a>
+      <a href="https://meansandmeasures.com/updates/">Updates</a>
+      <a href="https://meansandmeasures.com/status/">Status</a>
+      <a href="https://meansandmeasures.com/brand">Brand</a>
+      <a href="https://meansandmeasures.com/privacy/">Privacy</a>
+      <a href="https://meansandmeasures.com/terms/">Terms</a>
     </div>
-    <p class="footer-meta">© 2026 CivicBrands · For the Commons · EIN 39-2829761</p>
+    <p class="footer-meta">© 2026 Means+Measures · For the Commons · EIN 39-2829761</p>
   </footer>
 
   <script>

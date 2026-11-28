@@ -258,6 +258,7 @@ function summarizeNwsAlerts(data: unknown[]): PlainObservation[] {
       severity: /warning/i.test(alert.event) ? "alert" as const : "watch" as const,
       details: {
         headline: alert.headline,
+        area: alert.areaDesc,
         sender: alert.senderName,
         onset: alert.onset,
         ends: alert.ends ?? alert.expires,

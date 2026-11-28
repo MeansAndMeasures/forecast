@@ -18,13 +18,34 @@ export const NwsAlertSchema = z.object({
   expires: NullableString,
   ends: NullableString,
   senderName: NullableString,
+  /** The counties or zones the alert covers, in NWS's own words. */
+  areaDesc: NullableString,
+  /** UGC zone and SAME county codes; the only location a zone-based alert carries. */
+  geocode: z
+    .object({ UGC: z.array(z.string()).optional(), SAME: z.array(z.string()).optional() })
+    .nullable()
+    .optional(),
+  /**
+   * The alert's polygon when NWS drew one (storm-based warnings), else null.
+   * Zone-based alerts come without geometry and are located by `geocode`.
+   */
+  geometry: z
+    .object({
+      type: z.string(),
+      coordinates: z.array(z.unknown()).optional(),
+      geometries: z.array(z.unknown()).optional(),
+    })
+    .passthrough()
+    .nullable()
+    .optional(),
 });
 
 const NwsResponseSchema = z.object({
   features: z.array(
     z.object({
       id: z.string(),
-      properties: NwsAlertSchema.omit({ id: true }),
+      geometry: NwsAlertSchema.shape.geometry,
+      properties: NwsAlertSchema.omit({ id: true, geometry: true }),
     }),
   ),
 });
@@ -80,7 +101,7 @@ export const nwsAlertsSource: Source<NwsAlert> = {
     if (!parsed.success) {
       throw new Error(JSON.stringify(parsed.error.format(), null, 2));
     }
-    return parsed.data.features.map((feature) => ({ id: feature.id, ...feature.properties }));
+    return parsed.data.features.map((feature) => ({ id: feature.id, ...feature.properties, geometry: feature.geometry ?? null }));
   },
   observedAt(data) {
     return boundsFrom(data, (alert) => epochSeconds(alert.onset ?? alert.effective ?? alert.sent) ?? Math.floor(Date.now() / 1000));

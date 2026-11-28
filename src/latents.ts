@@ -88,6 +88,7 @@ export function deriveLatents(c: Collation, lookup: SnapshotLookup, context: Lat
           source: "NWS_ALERTS",
           alert_id: alert.id,
           event: alert.event,
+          area: alert.areaDesc,
           severity: alert.severity,
           urgency: alert.urgency,
           certainty: alert.certainty,

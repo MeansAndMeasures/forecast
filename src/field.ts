@@ -1,4 +1,5 @@
 import { airnowReadings } from "./sources/airnow";
+import { gustKt } from "./sources/metar";
 import { deriveLatents, DerivedLatent } from "./latents";
 import { registry } from "./sources/registry";
 import { AnySource, Snapshot, SourceContext } from "./sources/types";
@@ -275,14 +276,19 @@ function summarizeMetar(data: unknown[]): PlainObservation[] {
       dewp?: number;
       wdir?: number;
       wspd?: number;
-      visib?: number | string;
+      visib?: number | string | null;
       fltCat?: string;
       rawOb?: string;
     };
     const tempF = typeof o.temp === "number" ? Math.round((o.temp * 9) / 5 + 32) : undefined;
     const dewF = typeof o.dewp === "number" ? Math.round((o.dewp * 9) / 5 + 32) : undefined;
-    const wind = typeof o.wspd === "number" ? `${o.wspd} kt${typeof o.wdir === "number" ? ` from ${o.wdir}°` : ""}` : "wind unavailable";
-    const visibility = o.visib !== undefined ? `${o.visib} sm visibility` : "visibility unavailable";
+    const gust = gustKt(row);
+    const wind =
+      typeof o.wspd === "number"
+        ? `${o.wspd} kt${gust !== undefined ? ` gusting ${gust} kt` : ""}${typeof o.wdir === "number" ? ` from ${o.wdir}°` : ""}`
+        : "wind unavailable";
+    // Keep AWC's own wording ("10+") but never print a null.
+    const visibility = o.visib !== undefined && o.visib !== null ? `${o.visib} sm visibility` : "visibility unavailable";
     return {
       source: "METAR",
       title: `${o.name ?? o.icaoId ?? "Station"}${o.icaoId ? ` (${o.icaoId})` : ""}`,

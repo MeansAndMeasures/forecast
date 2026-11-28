@@ -49,7 +49,14 @@ scripts/
   build-registry.mjs     merges the above into src/places.generated.json
 relay/
   notam/               optional SWIM JMS consumer; not deployed, NOTAM is polled from NMS
+docs/
+  baseline.md          the build-out baseline: what runs, what's stored, what's missing (plan steps 1-44)
+  presentation.md      public presentation tiers and the interpretation layer (plan steps 61-78)
 test/
+  helpers/d1.ts        in-memory D1 stand-in over better-sqlite3, schema from migrations/
+  worker.test.ts       Worker route contracts + one runTick with stubbed upstreams
+  storage.test.ts      migrations, append-only storage, D1 collation, wrangler cron/route
+  decoding.test.ts     adapter decoding against fixed upstream bodies
   collate.test.ts      node:test
   server.test.ts       node:test
   latents.test.ts      node:test

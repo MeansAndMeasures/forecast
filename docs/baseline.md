@@ -117,7 +117,7 @@ Per park: name, centroid, area, HOLC grade (where mapped), park and neighborhood
 
 **Supported today, from flowing data:** current weather and visibility from METAR, air quality from AirNow, park comparisons from the registry and the model, the hourly crowd-cast history, and history charts over the spans above.
 
-**Needs a fix to data already arriving:** gusts (METAR schema), AirNow time zone, clear-sky visibility, alert areas for a map (NWS geometry), and a 400 on `/nearby.json` without coordinates.
+**Needs a fix to data already arriving:** gusts (METAR schema), AirNow time zone, clear-sky visibility, alert areas for a map (NWS geometry), and a 400 on `/nearby.json` without coordinates. F3 fixes the first four for snapshots written from then on; snapshots already stored keep what they were written with, since storage is append-only.
 
 **Needs new acquisition or infrastructure:** radar imagery (decode Level II or take a rendered product), modeled smoke (an HRRR proxy), lightning (NLDN subscription), events (PredictHQ key), NOTAM (FAA NMS credentials), observed foot traffic (none chosen; decision 5 is to buy none for now), and a vector basemap (decision 2: self-hosted).
 
@@ -135,4 +135,4 @@ Steps 45 to 60 ask that today's behavior be pinned before anything changes. Thes
 | 50 append-only storage | `test/storage.test.ts` |
 | 51 to 60 preserved responsibilities | the same suite: sources, field, latents, parks, attribution and the five-minute Worker tick stay where they are, and a change that moves one fails a test |
 
-Three known faults are deliberately left unpinned so the fixes can land without fighting the net: METAR gusts, NWS geometry and the AirNow time zone. The `/nearby.json` 0,0 behavior is pinned with a comment, because changing it changes the public contract.
+Three known faults are deliberately left unpinned so the fixes can land without fighting the net: METAR gusts, NWS geometry and the AirNow time zone. F3 fixed them and pins the fixes in `test/decoding.test.ts`. The `/nearby.json` 0,0 behavior is pinned with a comment, because changing it changes the public contract.

@@ -1,4 +1,5 @@
 import { airnowReadings } from "./sources/airnow";
+import { gustKt, visibilitySm } from "./sources/metar";
 import type { Collation } from "./store";
 import { activeHeatAlert, alertWhat, NwsAlertSchema } from "./sources/nws_alerts";
 
@@ -87,6 +88,7 @@ export function deriveLatents(c: Collation, lookup: SnapshotLookup, context: Lat
           source: "NWS_ALERTS",
           alert_id: alert.id,
           event: alert.event,
+          area: alert.areaDesc,
           severity: alert.severity,
           urgency: alert.urgency,
           certainty: alert.certainty,
@@ -121,14 +123,7 @@ export function deriveLatents(c: Collation, lookup: SnapshotLookup, context: Lat
   if (has("METAR")) {
     const snap = lookup("METAR");
     if (snap) {
-      const visib = snap.data
-        .map((d) => {
-          const v = (d as { visib?: number | string }).visib;
-          if (typeof v === "number") return v;
-          const n = Number(v);
-          return Number.isFinite(n) ? n : undefined;
-        })
-        .filter((n): n is number => typeof n === "number");
+      const visib = snap.data.map(visibilitySm).filter((n): n is number => n !== undefined);
       if (visib.length > 0) {
         const min = Math.min(...visib);
         out.push({
@@ -399,7 +394,7 @@ export function deriveLatents(c: Collation, lookup: SnapshotLookup, context: Lat
     if (radar && lightning && metar) {
       const strikes = lightning.data.length;
       const nonVfr = metar.data.filter((d) => (d as { fltCat?: string }).fltCat && (d as { fltCat?: string }).fltCat !== "VFR").length;
-      const gusts = numbers(metar.data, "wg");
+      const gusts = metar.data.map(gustKt).filter((n): n is number => n !== undefined);
       const maxGust = gusts.length ? Math.max(...gusts) : 0;
       const value = clamp(scoreCount(strikes, 5) * 0.45 + scoreCount(nonVfr, 3) * 0.25 + scoreWind(maxGust) * 0.2 + scoreCount(radar.data.length, 2) * 0.1, 0, 100);
       out.push({
@@ -510,7 +505,7 @@ function maxAirnow(rows: unknown[], parameterPattern: RegExp): number {
 }
 
 function minVisibilitySm(rows: unknown[]): number | undefined {
-  const values = numbers(rows, "visib");
+  const values = rows.map(visibilitySm).filter((n): n is number => n !== undefined);
   return values.length ? Math.min(...values) : undefined;
 }
 

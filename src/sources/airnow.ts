@@ -203,11 +203,44 @@ export function airnowUrl(lat: number, lon: number, key: string): string {
   return `https://www.airnowapi.org/aq/observation/current/ziplatlong/?${params.toString()}`;
 }
 
+/**
+ * Hours east of UTC for the zone abbreviations AirNow writes in
+ * `localTimeZone`. AirNow reports the observation hour in the reporting
+ * area's own local time, so "18:00 CST" is 00:00 UTC the next day.
+ */
+const ZONE_OFFSET_HOURS: Record<string, number> = {
+  UTC: 0,
+  GMT: 0,
+  EST: -5,
+  EDT: -4,
+  CST: -6,
+  CDT: -5,
+  MST: -7,
+  MDT: -6,
+  PST: -8,
+  PDT: -7,
+  AKST: -9,
+  AKDT: -8,
+  HST: -10,
+};
+
+/**
+ * The UTC epoch seconds a reading was observed at, or undefined when the row
+ * lacks a date or hour, or names a zone this table does not know. An unknown
+ * zone is not guessed at: reading it as UTC is what stored CST rows six hours
+ * early before this was fixed.
+ */
+export function airnowObservedAtSeconds(r: AirNowReading): number | undefined {
+  if (!r.date || r.hour === undefined || !r.timeZone) return undefined;
+  const offset = ZONE_OFFSET_HOURS[r.timeZone.toUpperCase()];
+  if (offset === undefined) return undefined;
+  const [y, m, d] = r.date.split("-").map(Number);
+  return Date.UTC(y, m - 1, d, r.hour - offset) / 1000;
+}
+
 function epochSeconds(o: AirNowObservation): number {
   const r = readAirNow(o);
-  if (!r?.date || r.hour === undefined) return Math.floor(Date.now() / 1000);
-  const d = new Date(`${r.date}T${String(r.hour).padStart(2, "0")}:00:00`);
-  return Math.floor(d.getTime() / 1000);
+  return (r && airnowObservedAtSeconds(r)) ?? Math.floor(Date.now() / 1000);
 }
 
 export const airnowSource: Source<AirNowObservation> = {
